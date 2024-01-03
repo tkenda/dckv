@@ -1,0 +1,9 @@
+[package]
+name = "dckv-database"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+thiserror = "1.0.50"
+rocksdb = "0.21.0"
+log = "0.4.20"
