@@ -1,9 +1,9 @@
-# Develop
+## Develop
 ```
 cargo run
 ```
 
-# Release
+## Release
 ```
 cargo run --release
 ```
