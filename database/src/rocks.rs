@@ -1,4 +1,4 @@
-use rocksdb::{ColumnFamilyDescriptor, Options, DB};
+use rocksdb::{Options, DB};
 use std::sync::Arc;
 
 use super::{DBActions, Result};
