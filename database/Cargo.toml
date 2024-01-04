@@ -6,4 +6,5 @@ edition = "2021"
 [dependencies]
 thiserror = "1.0.50"
 rocksdb = "0.21.0"
+strum = { version = "0.25", features = ["derive"] }
 log = "0.4.20"
