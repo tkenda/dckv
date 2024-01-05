@@ -1,5 +1,5 @@
 use rocksdb::{Options, DB};
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 use strum::VariantNames;
 
 use crate::DatabaseError;
@@ -45,9 +45,15 @@ impl RocksDB {
 
 impl DBActions<RocksDB, RocksDBConfig> for RocksDB {
     fn open(config: &RocksDBConfig) -> Result<Self> {
-        // List all column families.
-        let cfs_raw = DB::list_cf(&Options::default(), &config.path)?;
-        let mut cfs = cfs_raw.iter().map(|s| s.as_str()).collect::<Vec<_>>();
+        let mut cfs_raw = Vec::new();
+
+        // Check if database path already exists and list all column families.
+        if Path::new(&config.path).exists() {
+            cfs_raw = DB::list_cf(&Options::default(), &config.path)?;
+        }
+
+        // Vec<String> to Vec<&str>.
+        let mut cfs: Vec<&str> = cfs_raw.iter().map(AsRef::as_ref).collect();
 
         // Add categories.
         for category in Category::VARIANTS {

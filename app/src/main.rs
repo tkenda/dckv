@@ -1,39 +1,45 @@
-use dckv_database::{Category, DBActions, DatabaseError, RocksDB, RocksDBConfig};
+use dckv_database::{Category, DBActions, RocksDB, RocksDBConfig};
+use tokio::join;
 
-fn test_db() -> Result<(), DatabaseError> {
-    // create rocksdb configuration
+#[tokio::main]
+async fn main() {
+    // Open RocksDB database in main thread.
     let config = RocksDBConfig::builder().path("rocksdb").build();
-    let db = RocksDB::open(&config)?;
+    let db = RocksDB::open(&config).unwrap();
 
-    // put two key-value pars in dataset category
-    db.put(Category::Dataset, b"hola1", b"mundo1")?;
-    db.put(Category::Dataset, b"hola2", b"mundo2")?;
+    let db1 = db.clone();
+    let j1 = tokio::spawn(async move {
+        for i in 0..10000 {
+            println!("A");
+            let key = format!("key{}", i).as_bytes().to_vec();
+            let value = format!("value{}", i).as_bytes().to_vec();
+            db1.put(Category::Dataset, &key, &value).unwrap();
+        }
+    });
 
-    // put two key-value pars in canvas category
-    db.put(Category::Canvas, b"hola3", b"mundo3")?;
-    db.put(Category::Canvas, b"hola4", b"mundo4")?;
+    let db2 = db.clone();
+    let j2 = tokio::spawn(async move {
+        for i in 0..10000 {
+            println!("B");
+            let key = format!("key{}", i).as_bytes().to_vec();
+            let value = format!("value{}", i).as_bytes().to_vec();
+            db2.put(Category::Canvas, &key, &value).unwrap();
+        }
+    });
+
+    let _ = join!(j1, j2);
 
     // get two key-value pars from dataset category
-    let value = db.get(Category::Dataset, b"hola1")?.unwrap();
-    println!("hola1: {}", String::from_utf8(value).unwrap());
+    let value = db.get(Category::Dataset, b"key10").unwrap().unwrap();
+    println!("1: {}", String::from_utf8(value).unwrap());
 
-    let value = db.get(Category::Dataset, b"hola2")?.unwrap();
-    println!("hola2: {}", String::from_utf8(value).unwrap());
+    let value = db.get(Category::Dataset, b"key50").unwrap().unwrap();
+    println!("2: {}", String::from_utf8(value).unwrap());
 
     // get two key-value pars from canvas category
-    let value = db.get(Category::Canvas, b"hola3")?.unwrap();
-    println!("hola3: {}", String::from_utf8(value).unwrap());
+    let value = db.get(Category::Canvas, b"key100").unwrap().unwrap();
+    println!("3: {}", String::from_utf8(value).unwrap());
 
-    let value = db.get(Category::Canvas, b"hola4")?.unwrap();
-    println!("hola4: {}", String::from_utf8(value).unwrap());
-
-    Ok(())
-}
-
-fn main() {
-    println!("init");
-
-    if let Err(err) = test_db() {
-        println!("{}", err);
-    }
+    let value = db.get(Category::Canvas, b"key500").unwrap().unwrap();
+    println!("4: {}", String::from_utf8(value).unwrap());
 }

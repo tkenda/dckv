@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 dckv-database = { path = "../database" }
+tokio = { version = "1.33.0", features = ["full"] }
