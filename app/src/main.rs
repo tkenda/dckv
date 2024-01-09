@@ -42,4 +42,8 @@ async fn main() {
 
     let value = db.get(Category::Canvas, b"key500").unwrap().unwrap();
     println!("4: {}", String::from_utf8(value).unwrap());
+
+    // get ref
+    let value = db.get_ref(Category::Dataset, b"key10").unwrap().unwrap();
+    println!("5: {}", String::from_utf8(value.as_ref().to_vec()).unwrap());
 }

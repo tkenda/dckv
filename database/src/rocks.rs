@@ -1,4 +1,4 @@
-use rocksdb::{Options, DB};
+use rocksdb::{DBPinnableSlice, Options, DB};
 use std::{path::Path, sync::Arc};
 use strum::VariantNames;
 
@@ -43,7 +43,7 @@ impl RocksDB {
     }
 }
 
-impl DBActions<RocksDB, RocksDBConfig> for RocksDB {
+impl<'r> DBActions<'r, RocksDB, RocksDBConfig, DBPinnableSlice<'r>> for RocksDB {
     fn open(config: &RocksDBConfig) -> Result<Self> {
         let mut cfs_raw = Vec::new();
 
@@ -73,7 +73,13 @@ impl DBActions<RocksDB, RocksDBConfig> for RocksDB {
 
     fn get(&self, category: Category, key: &[u8]) -> Result<Option<Vec<u8>>> {
         let cf = self.category_handle(category)?;
+
         Ok(self.0.get_cf(cf, key)?)
+    }
+
+    fn get_ref(&'r self, category: Category, key: &[u8]) -> Result<Option<DBPinnableSlice<'r>>> {
+        let cf = self.category_handle(category)?;
+        Ok(self.0.get_pinned_cf(cf, key)?)
     }
 
     fn put(&self, category: Category, key: &[u8], value: &[u8]) -> Result<()> {
