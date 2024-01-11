@@ -1,10 +1,10 @@
+use dckv_parser::{Category, Parser};
 use rocksdb::{DBPinnableSlice, Options, DB};
-use std::{path::Path, sync::Arc};
 use strum::VariantNames;
+use std::{path::Path, sync::Arc};
 
+use super::{DBActions, Result};
 use crate::DatabaseError;
-
-use super::{Category, DBActions, Result};
 
 pub struct RocksDBConfig {
     path: String,
@@ -36,15 +36,7 @@ impl RocksDBConfigBuilder {
 pub struct RocksDB(Arc<DB>);
 
 impl RocksDB {
-    fn category_handle(&self, category: Category) -> Result<&rocksdb::ColumnFamily> {
-        self.0
-            .cf_handle(category.as_ref())
-            .ok_or(DatabaseError::CategoryHandleError(category))
-    }
-}
-
-impl<'r> DBActions<'r, RocksDB, RocksDBConfig, DBPinnableSlice<'r>> for RocksDB {
-    fn open(config: &RocksDBConfig) -> Result<Self> {
+    pub fn open(config: &RocksDBConfig) -> Result<Self> {
         let mut cfs_raw = Vec::new();
 
         // Check if database path already exists and list all column families.
@@ -71,26 +63,35 @@ impl<'r> DBActions<'r, RocksDB, RocksDBConfig, DBPinnableSlice<'r>> for RocksDB 
         Ok(Self(Arc::new(DB::open_cf(&db_opts, &config.path, cfs)?)))
     }
 
-    fn get(&self, category: Category, key: &[u8]) -> Result<Option<Vec<u8>>> {
-        let cf = self.category_handle(category)?;
+    fn category_handle(&self, category: &Category) -> Result<&rocksdb::ColumnFamily> {
+        self.0
+            .cf_handle(category.as_ref())
+            .ok_or(DatabaseError::CategoryHandleError(*category))
+    }
+}
 
+impl<'r> DBActions<'r, RocksDB, RocksDBConfig, DBPinnableSlice<'r>, DatabaseError> for RocksDB {
+    fn get(&self, category: &Category, key: &[u8]) -> Result<Option<Vec<u8>>> {
+        let cf = self.category_handle(category)?;
         Ok(self.0.get_cf(cf, key)?)
     }
 
-    fn get_ref(&'r self, category: Category, key: &[u8]) -> Result<Option<DBPinnableSlice<'r>>> {
+    fn get_ref(&'r self, category: &Category, key: &[u8]) -> Result<Option<DBPinnableSlice<'r>>> {
         let cf = self.category_handle(category)?;
         Ok(self.0.get_pinned_cf(cf, key)?)
     }
 
-    fn put(&self, category: Category, key: &[u8], value: &[u8]) -> Result<()> {
+    fn put(&self, category: &Category, key: &[u8], value: &[u8]) -> Result<()> {
         let cf = self.category_handle(category)?;
         self.0.put_cf(cf, key, value)?;
         Ok(())
     }
 
-    fn delete(&self, category: Category, key: &[u8]) -> Result<()> {
+    fn delete(&self, category: &Category, key: &[u8]) -> Result<()> {
         let cf = self.category_handle(category)?;
         self.0.delete_cf(cf, key)?;
         Ok(())
     }
 }
+
+impl<'r> Parser<'r, RocksDB, RocksDBConfig, DBPinnableSlice<'r>, DatabaseError> for RocksDB {}

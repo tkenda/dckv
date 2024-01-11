@@ -4,7 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+dckv-parser = { path = "../parser" }
 thiserror = "1.0.50"
 rocksdb = "0.21.0"
-strum = { version = "0.25", features = ["derive"] }
 log = "0.4.20"
+strum = { version = "0.25", features = ["derive"] }
+tokio = { version = "1.33.0", features = ["full"] }

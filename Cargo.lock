@@ -31,6 +31,7 @@ name = "app"
 version = "0.1.0"
 dependencies = [
  "dckv-database",
+ "dckv-parser",
  "tokio",
 ]
 
@@ -139,10 +140,22 @@ dependencies = [
 name = "dckv-database"
 version = "0.1.0"
 dependencies = [
+ "dckv-parser",
  "log",
  "rocksdb",
  "strum",
  "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "dckv-parser"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "strum",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]

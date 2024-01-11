@@ -1,9 +1,10 @@
 [package]
-name = "app"
+name = "dckv-parser"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-dckv-database = { path = "../database" }
-dckv-parser = { path = "../parser" }
+thiserror = "1.0.50"
+log = "0.4.20"
+strum = { version = "0.25", features = ["derive"] }
 tokio = { version = "1.33.0", features = ["full"] }

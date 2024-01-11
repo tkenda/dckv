@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::Category;
+use dckv_parser::{Category, ParserError};
 
 #[derive(Error, Debug)]
 pub enum DatabaseError {
@@ -9,4 +9,10 @@ pub enum DatabaseError {
 
     #[error("Can't create handle for category: {0}.")]
     CategoryHandleError(Category),
+}
+
+impl From<DatabaseError> for ParserError {
+    fn from(value: DatabaseError) -> Self {
+        ParserError::DatabaseError(value.to_string())
+    }
 }
