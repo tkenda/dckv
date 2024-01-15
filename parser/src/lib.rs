@@ -5,9 +5,9 @@ mod error;
 mod helpers;
 
 pub use error::ParserError;
-use tokio::io::{AsyncReadExt, AsyncSeekExt};
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
-use crate::helpers::ParserStream;
+use crate::helpers::ParserCore;
 
 pub type Result<T> = std::result::Result<T, ParserError>;
 
@@ -75,25 +75,34 @@ where
     DBError: Into<ParserError> + std::fmt::Debug,
     Self: DBActions<'r, DB, DBConfig, RV, DBError>,
 {
-    async fn store<S: AsyncReadExt + AsyncSeekExt + Unpin + Send>(&self, mut src: S) -> Result<()> {
-        let mut stream = ParserStream::new(&mut src);
+    async fn store<S: AsyncReadExt + AsyncSeekExt + Unpin + Send>(
+        &self,
+        mut stream: S,
+    ) -> Result<()> {
+        let mut parser = ParserCore::new(&mut stream);
 
         /* Preamble */
 
-        stream.skip_unused_preamble().await?;
+        parser.skip_unused_preamble().await?;
 
-        stream.validate_dicm().await?;
+        parser.validate_dicm().await?;
 
         /* Group 0x02 */
 
-        let (group, element) = stream
-            .read_group_element(DataEncoding::ExplicitVRLittleEndian)
-            .await?;
+        let (group, element) = parser.read_group_element().await?;
 
         println!("{:?} {:?}", group, element);
 
         //self.put(&Category::Dataset, &key, &[value]).unwrap();
 
         Ok(())
+    }
+
+    async fn read<S: AsyncWriteExt + AsyncSeekExt + Unpin + Send>(
+        &self,
+        index: usize,
+        mut stream: S,
+    ) -> Result<()> {
+        todo!()
     }
 }

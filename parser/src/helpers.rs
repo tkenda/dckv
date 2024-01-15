@@ -4,16 +4,16 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
 use crate::{DataEncoding, ParserError, Result};
 
-pub(crate) struct ParserStream<'r, S: AsyncReadExt + AsyncSeekExt + Unpin + Send> {
+pub(crate) struct ParserCore<'r, S: AsyncReadExt + AsyncSeekExt + Unpin + Send> {
     stream: &'r mut S,
-    data_encoding: DataEncoding,
+    encoding: DataEncoding,
 }
 
-impl<'r, S: AsyncReadExt + AsyncSeekExt + Unpin + Send> ParserStream<'r, S> {
+impl<'r, S: AsyncReadExt + AsyncSeekExt + Unpin + Send> ParserCore<'r, S> {
     pub(crate) fn new(stream: &'r mut S) -> Self {
         Self {
             stream,
-            data_encoding: DataEncoding::ExplicitVRLittleEndian,
+            encoding: DataEncoding::ExplicitVRLittleEndian,
         }
     }
 
@@ -33,11 +33,8 @@ impl<'r, S: AsyncReadExt + AsyncSeekExt + Unpin + Send> ParserStream<'r, S> {
     }
 
     /// Read Group / Element from a DICOM tag.
-    pub(crate) async fn read_group_element(
-        &mut self,
-        data_encoding: DataEncoding,
-    ) -> Result<(u16, u16)> {
-        match data_encoding {
+    pub(crate) async fn read_group_element(&mut self) -> Result<(u16, u16)> {
+        match self.encoding {
             DataEncoding::ImplicitVRLittleEndian | DataEncoding::ExplicitVRLittleEndian => Ok((
                 self.stream.read_u16_le().await?,
                 self.stream.read_u16_le().await?,
