@@ -1,13 +1,17 @@
+use async_trait::async_trait;
 use strum::{AsRefStr, Display, EnumVariantNames};
-use tokio::io::AsyncReadExt;
 
 mod error;
+mod helpers;
 
 pub use error::ParserError;
+use tokio::io::{AsyncReadExt, AsyncSeekExt};
+
+use crate::helpers::ParserStream;
 
 pub type Result<T> = std::result::Result<T, ParserError>;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, AsRefStr, Display, EnumVariantNames)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, AsRefStr, Display, EnumVariantNames)]
 pub enum Category {
     #[strum(serialize = "fmi")]
     FileMetaInfo,
@@ -37,6 +41,14 @@ pub enum Category {
     Dataset,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
+pub enum DataEncoding {
+    #[default]
+    ImplicitVRLittleEndian,
+    ExplicitVRLittleEndian,
+    ExplicitVRBigEndian,
+}
+
 pub type DBResult<T, DBError> = std::result::Result<T, DBError>;
 
 pub trait DBActions<
@@ -55,6 +67,7 @@ pub trait DBActions<
     // prefix
 }
 
+#[async_trait]
 pub trait Parser<'r, DB, DBConfig, RV, DBError>
 where
     RV: AsRef<[u8]>,
@@ -62,13 +75,24 @@ where
     DBError: Into<ParserError> + std::fmt::Debug,
     Self: DBActions<'r, DB, DBConfig, RV, DBError>,
 {
-    async fn store<S: AsyncReadExt + Unpin>(&self, mut stream: S) -> Result<()> {
-        let value = stream.read_u8().await.unwrap();
-        println!("value: {}", value);
+    async fn store<S: AsyncReadExt + AsyncSeekExt + Unpin + Send>(&self, mut src: S) -> Result<()> {
+        let mut stream = ParserStream::new(&mut src);
 
-        let key = "key".to_string().as_bytes().to_vec();
+        /* Preamble */
 
-        self.put(&Category::Dataset, &key, &[value]).unwrap();
+        stream.skip_unused_preamble().await?;
+
+        stream.validate_dicm().await?;
+
+        /* Group 0x02 */
+
+        let (group, element) = stream
+            .read_group_element(DataEncoding::ExplicitVRLittleEndian)
+            .await?;
+
+        println!("{:?} {:?}", group, element);
+
+        //self.put(&Category::Dataset, &key, &[value]).unwrap();
 
         Ok(())
     }

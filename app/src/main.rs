@@ -1,9 +1,10 @@
 use dckv_database::{RocksDB, RocksDBConfig};
 
-use dckv_parser::Parser;
-use tokio::{fs::File, io::BufReader, join};
+use dckv_parser::{Category, DBActions, Parser};
+use tokio::fs::File;
+use tokio::io::BufReader;
+use tokio::join;
 
-/*
 async fn test_db() {
     // Open RocksDB database in main thread.
     let config = RocksDBConfig::builder().path("rocksdb").build();
@@ -49,7 +50,6 @@ async fn test_db() {
     let value = db.get_ref(&Category::Dataset, b"key10").unwrap().unwrap();
     println!("5: {}", String::from_utf8(value.as_ref().to_vec()).unwrap());
 }
-*/
 
 #[tokio::main]
 async fn main() {
@@ -58,8 +58,8 @@ async fn main() {
     let config = RocksDBConfig::builder().path("rocksdb").build();
     let db = RocksDB::open(&config).unwrap();
 
-    let file = File::open("test.dcm").await.unwrap();
-    let reader = BufReader::new(file);
+    let file1 = File::open("test.dcm").await.unwrap();
+    let reader = BufReader::new(file1);
 
     db.store(reader).await.unwrap();
 }

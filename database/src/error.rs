@@ -13,6 +13,6 @@ pub enum DatabaseError {
 
 impl From<DatabaseError> for ParserError {
     fn from(value: DatabaseError) -> Self {
-        ParserError::DatabaseError(value.to_string())
+        ParserError::DBError(value.to_string())
     }
 }
