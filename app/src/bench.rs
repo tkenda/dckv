@@ -3,12 +3,12 @@ use std::io::Cursor;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 
-use dckv_database::{RocksDB, RocksDBConfig};
+use dckv_database::{RocksDB, RocksDBOpts};
 use dckv_parser::Parser;
 
 fn criterion_benchmark(c: &mut Criterion) {
-    let config = RocksDBConfig::builder().path("rocksdb").build();
-    let db = RocksDB::open(&config).unwrap();
+    let config = RocksDBOpts::builder().path("rocksdb").build();
+    let db = RocksDB::new(config);
 
     c.bench_function("parse stream", |b| {
         b.iter(|| async {

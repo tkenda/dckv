@@ -1,82 +1,51 @@
 use async_trait::async_trait;
-use strum::{AsRefStr, Display, EnumVariantNames};
+use std::fmt::Debug;
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 mod error;
 mod helpers;
 
 pub use error::ParserError;
-use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 use crate::helpers::ParserCore;
 
 pub type Result<T> = std::result::Result<T, ParserError>;
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, AsRefStr, Display, EnumVariantNames)]
-pub enum Category {
-    #[strum(serialize = "fmi")]
-    FileMetaInfo,
-    #[strum(serialize = "pri")]
-    Private,
-    #[strum(serialize = "stu")]
-    Study,
-    #[strum(serialize = "ser")]
-    Series,
-    #[strum(serialize = "can")]
-    Canvas,
-    #[strum(serialize = "nat")]
-    Native,
-    #[strum(serialize = "natref")]
-    NativeByRef,
-    #[strum(serialize = "cod")]
-    Codec,
-    #[strum(serialize = "fra")]
-    Fragment,
-    #[strum(serialize = "fraref")]
-    FragmentByRef,
-    #[strum(serialize = "res")]
-    Resource,
-    #[strum(serialize = "resref")]
-    ResourceByRef,
-    #[strum(serialize = "dat")]
-    Dataset,
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
-pub enum DataEncoding {
-    #[default]
-    ImplicitVRLittleEndian,
-    ExplicitVRLittleEndian,
-    ExplicitVRBigEndian,
-}
-
 pub type DBResult<T, DBError> = std::result::Result<T, DBError>;
 
-pub trait DBActions<
-    'r,
-    DB: DBActions<'r, DB, DBConfig, RV, DBError>,
-    DBConfig,
+#[async_trait]
+pub trait DBGetHandler<'r, DBHandler, RV, DBError>
+where
     RV: AsRef<[u8]>,
-    DBError,
->
+    DBError: Into<ParserError> + Debug,
 {
-    fn put(&self, category: &Category, key: &[u8], value: &[u8]) -> DBResult<(), DBError>;
-    fn get(&self, category: &Category, key: &[u8]) -> DBResult<Option<Vec<u8>>, DBError>;
-    fn get_ref(&'r self, category: &Category, key: &[u8]) -> DBResult<Option<RV>, DBError>;
-    fn delete(&self, category: &Category, key: &[u8]) -> DBResult<(), DBError>;
+    async fn open(&self, series_iuid: &[u8; 64]) -> DBResult<DBHandler, DBError>;
+    async fn close(&self, series_iuid: &[u8; 64]);
+}
+
+pub trait DBHandlerActions<'r, RV, DBError>
+where
+    RV: AsRef<[u8]>,
+    DBError: Into<ParserError> + Debug,
+{
+    fn put(&self, key: &[u8], value: &[u8]) -> DBResult<(), DBError>;
+    fn get(&self, key: &[u8]) -> DBResult<Option<Vec<u8>>, DBError>;
+    fn get_ref(&'r self, key: &[u8]) -> DBResult<Option<RV>, DBError>;
+    fn delete(&self, key: &[u8]) -> DBResult<(), DBError>;
     // range
     // prefix
 }
 
 #[async_trait]
-pub trait Parser<'r, DB, DBConfig, RV, DBError>
+pub trait Parser<'r, DB, DBHandler, RV, DBError>
 where
     RV: AsRef<[u8]>,
-    DB: DBActions<'r, DB, DBConfig, RV, DBError>,
-    DBError: Into<ParserError> + std::fmt::Debug,
-    Self: DBActions<'r, DB, DBConfig, RV, DBError>,
+    DBError: Into<ParserError> + Debug,
+    DBHandler: DBHandlerActions<'r, RV, DBError> + Send,
+    ParserError: From<DBError>,
+    Self: DBGetHandler<'r, DBHandler, RV, DBError>,
 {
     async fn store<S: AsyncReadExt + AsyncSeekExt + Unpin + Send>(
-        &self,
+        &'r self,
         mut stream: S,
     ) -> Result<()> {
         let mut parser = ParserCore::new(&mut stream);
@@ -87,13 +56,11 @@ where
 
         parser.validate_dicm().await?;
 
-        /* Group 0x02 */
+        let handler = self.open(&[0; 64]).await?;
 
-        let (group, element) = parser.read_group_element().await?;
+        handler.put(&[0], &[0]).unwrap();
 
-        println!("{:?} {:?}", group, element);
-
-        //self.put(&Category::Dataset, &key, &[value]).unwrap();
+        self.close(&[0; 64]).await;
 
         Ok(())
     }

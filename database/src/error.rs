@@ -1,6 +1,8 @@
 use thiserror::Error;
 
-use dckv_parser::{Category, ParserError};
+use dckv_parser::ParserError;
+
+use crate::rocks::Category;
 
 #[derive(Error, Debug)]
 pub enum DatabaseError {

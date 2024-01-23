@@ -10,3 +10,4 @@ rocksdb = "0.21.0"
 log = "0.4.20"
 strum = { version = "0.25", features = ["derive"] }
 tokio = { version = "1.33.0", features = ["full"] }
+async-trait = "0.1.74"
