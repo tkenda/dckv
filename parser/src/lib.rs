@@ -44,25 +44,39 @@ where
     ParserError: From<DBError>,
     Self: DBGetHandler<'r, DBHandler, RV, DBError>,
 {
+    async fn inner_store<S: AsyncReadExt + AsyncSeekExt + Unpin + Send>(
+        &'r self,
+        series_iuid: &[u8; 64],
+        parser: &mut ParserCore<'_, S>,
+    ) -> Result<()> {
+        let handler = self.open(&[0; 64]).await?;
+
+        handler.put(&[0], &[0])?;
+
+        Ok(())
+    }
+
     async fn store<S: AsyncReadExt + AsyncSeekExt + Unpin + Send>(
         &'r self,
         mut stream: S,
     ) -> Result<()> {
         let mut parser = ParserCore::new(&mut stream);
 
-        /* Preamble */
+        /* DICOM PARSE */
 
         parser.skip_unused_preamble().await?;
 
         parser.validate_dicm().await?;
 
-        let handler = self.open(&[0; 64]).await?;
+        let series_iuid = [0; 64];
 
-        handler.put(&[0], &[0]).unwrap();
+        /* SAVE DB */
 
-        self.close(&[0; 64]).await;
+        let ret = self.inner_store(&series_iuid, &mut parser).await;
 
-        Ok(())
+        self.close(&series_iuid).await;
+
+        ret
     }
 
     async fn read<S: AsyncWriteExt + AsyncSeekExt + Unpin + Send>(
